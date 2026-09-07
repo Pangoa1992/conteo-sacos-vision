@@ -9,12 +9,13 @@ Soporta TRES modos, controlados por la variable de entorno MODO_DETECCION:
 
   2. "sam3" — llama al modelo SAM3 (vía Roboflow), que detecta sacos
      SIN necesitar entrenamiento propio, describiendo el objeto por
-     su apariencia visual. Requiere ROBOFLOW_API_KEY y
-     ROBOFLOW_WORKFLOW_URL configurados.
+     su apariencia visual (ver ROBOFLOW_PROMPT en .env). Requiere
+     ROBOFLOW_API_KEY y ROBOFLOW_WORKFLOW_URL configurados.
 
   3. "yolo" — usa un modelo YOLOv8 propio, entrenado con fotos reales
-     de la fábrica. Requiere RUTA_MODELO_YOLO apuntando al archivo
-     .pt entrenado.
+     de la fábrica (ver conteo-sacos-vision/notebooks o el pipeline
+     de entrenamiento). Requiere RUTA_MODELO_YOLO apuntando al
+     archivo .pt entrenado.
 
 Los tres modos devuelven el mismo tipo de resultado (ResultadoConteo),
 así que el resto del pipeline (main.py, api_cliente.py) no necesita
@@ -90,6 +91,7 @@ def _contar_con_sam3(frame) -> ResultadoConteo:
               "ROBOFLOW_WORKFLOW_URL en el .env. Usando modo simulado como respaldo.")
         return _contar_simulado()
 
+    # Codificar el frame (imagen) a base64 para enviarlo en la petición.
     ok, buffer = cv2.imencode(".jpg", frame)
     if not ok:
         print("[deteccion] No se pudo codificar la imagen para SAM3.")
@@ -118,6 +120,9 @@ def _contar_con_sam3(frame) -> ResultadoConteo:
         print(f"[deteccion] Error al llamar a SAM3/Roboflow: {error}")
         return _contar_simulado()
 
+    # NOTA: la forma exacta de la respuesta puede variar según cómo quedó
+    # configurado el workflow en Roboflow. Se intentan las estructuras más
+    # comunes; si no coincide, se imprime la respuesta cruda para ajustar.
     predicciones = (
         datos.get("predictions")
         or datos.get("outputs", [{}])[0].get("predictions", {}).get("predictions")
